@@ -17,7 +17,7 @@ class CoinswitchxAuth(AuthBase):
         self.secret_key = secret_key
         self.time_provider = time_provider
 
-    def _generate_signature(private_key: str, sign_params: Dict):
+    def _generate_signature(self, private_key: str, sign_params: Dict) -> str:
 
         private_key_bytes = bytes.fromhex(private_key)
 
@@ -26,16 +26,15 @@ class CoinswitchxAuth(AuthBase):
             sort_keys=True,  # sort keys in the request payload
             separators=(',', ':'),  # compact encoding to remove whitespace
         )
-        message_bytes = bytes(
-            str(sign_params["timestamp"]) +
-            sign_params["method"] +
-            sign_params["urlPath"] +
-            message_str,
+        combined_str = str(sign_params["timestamp"]) + sign_params["method"] + sign_params["urlPath"] + message_str
+
+        combined_message_bytes = bytes(
+            combined_str,
             'utf-8'
         )
 
         private_key_obj = ed25519.Ed25519PrivateKey.from_private_bytes(private_key_bytes)
-        signature = private_key_obj.sign(message_bytes)
+        signature = private_key_obj.sign(combined_message_bytes).hex()
 
         return signature
 
@@ -46,24 +45,28 @@ class CoinswitchxAuth(AuthBase):
         timestamp = int(datetime.now(timezone.utc).timestamp())
 
         parsed_url = urlparse(request.url)
+        url_path = parsed_url.path.rstrip('/')
 
-        url_path = parsed_url.path + '?' + parsed_url.query if parsed_url.query else parsed_url.path
+        if not parsed_url.query:
+            url_path = url_path + '/'
+        else:
+            url_path = url_path + '?' + parsed_url.query
 
-        data = request.data if request.data is not None else ""
+        data = request.data if request.data is not None else {}
 
         sign_params = {
             "timestamp": timestamp,  # current time in epoch seconds
-            "method": request.method,
+            "method": str(request.method),
             "urlPath": url_path,  # url path with query params
             "message": data
         }
 
-        signature = self._generate_signature(self.secret_key, sign_params)
+        signature = self._generate_signature(private_key = self.secret_key, sign_params = sign_params)
 
         coinswitchx_header = {
             "CSX-ACCESS-KEY": self.api_key,
             "CSX-SIGNATURE": signature,
-            "CSX-ACCESS-TIMESTAMP": timestamp,
+            "CSX-ACCESS-TIMESTAMP": str(timestamp),
             # TODO X-Forwarded-For
         }
 
@@ -78,7 +81,7 @@ class CoinswitchxAuth(AuthBase):
     async def ws_authenticate(self,
                               request: WSRequest,
                               ) -> WSRequest:
-        pass
+        return request  # TODO
     #     """
     #     This method is intended to configure a websocket request to be authenticated.
     #     It should be used with empty requests to send an initial login payload.

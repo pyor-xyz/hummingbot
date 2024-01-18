@@ -4,24 +4,7 @@ from typing import Any, Dict, Optional
 import hummingbot.connector.exchange.coinswitchx.coinswitchx_constants as CONSTANTS
 from hummingbot.core.api_throttler.async_throttler import AsyncThrottler
 from hummingbot.core.web_assistant.auth import AuthBase
-from hummingbot.core.web_assistant.connections.data_types import RESTRequest
-from hummingbot.core.web_assistant.rest_pre_processors import RESTPreProcessorBase
 from hummingbot.core.web_assistant.web_assistants_factory import WebAssistantsFactory
-
-
-class CoinswitchxRESTPreProcessor(RESTPreProcessorBase):
-    async def pre_process(self, request: RESTRequest) -> RESTRequest:
-        if request.headers is None:
-            request.headers = {}
-        # Generates generic headers required by AscendEx
-        headers_generic = {}
-        headers_generic["Accept"] = "application/json"
-        headers_generic["Content-Type"] = "application/json"
-        # Headers signature to identify user as an HB liquidity provider.
-        request.headers = dict(
-            list(request.headers.items()) + list(headers_generic.items()) + list(get_hb_id_headers().items())
-        )
-        return request
 
 
 def get_hb_id_headers() -> Dict[str, Any]:
@@ -69,7 +52,7 @@ def build_api_factory(
     auth: Optional[AuthBase] = None,
 ) -> WebAssistantsFactory:
     throttler = throttler or create_throttler()
-    api_factory = WebAssistantsFactory(throttler=throttler, auth=auth, rest_pre_processors=[CoinswitchxRESTPreProcessor()])
+    api_factory = WebAssistantsFactory(throttler=throttler, auth=auth)
     return api_factory
 
 

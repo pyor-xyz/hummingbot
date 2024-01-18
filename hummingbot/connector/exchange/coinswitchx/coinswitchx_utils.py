@@ -1,4 +1,5 @@
 from decimal import Decimal
+from typing import Any, Dict
 
 from pydantic import Field, SecretStr
 
@@ -15,6 +16,18 @@ def decimal_val_or_none(string_value: str,
             return None
         else:
             return Decimal('0')
+
+
+def is_exchange_information_valid(exchange_info: Dict[str, Any]) -> bool:
+    """
+    Verifies if a trading pair is enabled to operate with based on its exchange information
+    :param exchange_info: the exchange information for a trading pair. Dictionary with status and permissions
+    :return: True if the trading pair is enabled, False otherwise
+
+    Nowadays all available pairs are valid.
+    It is here for future implamentation.
+    """
+    return True
 
 
 class CoinswitchxConfigMap(BaseConnectorConfigMap):

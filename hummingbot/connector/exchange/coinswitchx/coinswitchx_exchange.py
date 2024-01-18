@@ -1,7 +1,7 @@
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
-import bidict
+from bidict import bidict
 
 from hummingbot.connector.constants import s_decimal_NaN
 from hummingbot.connector.exchange.coinswitchx import (
@@ -12,6 +12,7 @@ from hummingbot.connector.exchange.coinswitchx import (
 from hummingbot.connector.exchange.coinswitchx.coinswitchx_auth import CoinswitchxAuth
 from hummingbot.connector.exchange_py_base import ExchangePyBase
 from hummingbot.connector.trading_rule import TradingRule
+from hummingbot.connector.utils import combine_to_hb_trading_pair
 from hummingbot.core.api_throttler.data_types import RateLimit
 from hummingbot.core.data_type.common import OrderType, TradeType
 from hummingbot.core.data_type.in_flight_order import InFlightOrder, OrderUpdate, TradeUpdate
@@ -40,7 +41,7 @@ class CoinswitchxExchange(ExchangePyBase):
         self.secret_key = coinswitchx_api_secret
         self._domain = domain
         self._trading_required = trading_required
-        self._trading_pairs = ["BTC-INR"]  # TODO
+        self._trading_pairs = trading_pairs
         super().__init__(client_config_map)
 
     @property
@@ -73,11 +74,11 @@ class CoinswitchxExchange(ExchangePyBase):
 
     @property
     def trading_rules_request_path(self) -> str:
-        pass
+        return CONSTANTS.EXCHANGE_INFO_PATH_URL
 
     @property
     def trading_pairs_request_path(self) -> str:
-        pass
+        return CONSTANTS.EXCHANGE_INFO_PATH_URL
 
     @property
     def check_network_request_path(self) -> str:
@@ -102,15 +103,52 @@ class CoinswitchxExchange(ExchangePyBase):
         pass
 
     async def _format_trading_rules(self, exchange_info_dict: Dict[str, Any]) -> List[TradingRule]:
+        """
+        Example:
+        {
+            "data": {
+                "instruments": [
+                    {
+                        "instrument": "1INCH/INR",
+                        "basePrecision": "0.1",
+                        "quotePrecision": "0.01",
+                        "limitPrecision": "0.01"
+                    },
+                    {
+                        "instrument": "AAVE/INR",
+                        "basePrecision": "0.001",
+                        "quotePrecision": "0.01",
+                        "limitPrecision": "1"
+                    }
+                ]
+            }
+        }
+        """
+        trading_pair_rules = exchange_info_dict.get("data", {}).get("instruments", [])
         retval = []
-        #  TODO
-        retval.append(TradingRule("BTC-INR",
-                                  min_order_size=0.1,
-                                  min_price_increment=Decimal(0.1),
-                                  min_base_amount_increment=Decimal(0.1),
-                                  min_notional_size=Decimal(0.1)))
-        # except Exception:
-        #         self.logger().exception(f"Error parsing the trading pair rule {rule}. Skipping.")
+        for rule in filter(coinswitchx_utils.is_exchange_information_valid, trading_pair_rules):
+            try:
+                trading_pair = await self.trading_pair_associated_to_exchange_symbol(symbol=rule.get("instrument"))
+                # TODO
+                # filters = rule.get("filters")
+                # price_filter = [f for f in filters if f.get("filterType") == "PRICE_FILTER"][0]
+                # lot_size_filter = [f for f in filters if f.get("filterType") == "LOT_SIZE"][0]
+                # min_notional_filter = [f for f in filters if f.get("filterType") in ["MIN_NOTIONAL", "NOTIONAL"]][0]
+
+                # min_order_size = Decimal(lot_size_filter.get("minQty"))
+                # tick_size = price_filter.get("tickSize")
+                # step_size = Decimal(lot_size_filter.get("stepSize"))
+                # min_notional = Decimal(min_notional_filter.get("minNotional"))
+
+                retval.append(
+                    TradingRule(trading_pair,
+                                min_order_size=0.1,
+                                min_price_increment=Decimal(0.1),
+                                min_base_amount_increment=Decimal(0.1),
+                                min_notional_size=Decimal(0.1)))
+
+            except Exception:
+                self.logger().exception(f"Error parsing the trading pair rule {rule}. Skipping.")
         return retval
 
     def _get_fee(self,
@@ -125,9 +163,10 @@ class CoinswitchxExchange(ExchangePyBase):
 
     def _initialize_trading_pair_symbols_from_exchange_info(self, exchange_info: Dict[str, Any]):
         mapping = bidict()
-        # for symbol_data in filter(binance_utils.is_exchange_information_valid, exchange_info["symbols"]):
-        #     mapping[symbol_data["symbol"]] = combine_to_hb_trading_pair(base=symbol_data["baseAsset"],
-        mapping["BTC-INR"] = "BTC-INR"
+        for symbol_data in filter(coinswitchx_utils.is_exchange_information_valid, exchange_info.get("data", {}).get("instruments", [])):
+            asset_pair = symbol_data["instrument"].split('/')
+            mapping[symbol_data["instrument"]] = combine_to_hb_trading_pair(base=asset_pair[0],
+                                                                            quote=asset_pair[1])
         self._set_trading_pair_symbol_map(mapping)
 
     def _is_order_not_found_during_status_update_error(self, status_update_exception: Exception) -> bool:
