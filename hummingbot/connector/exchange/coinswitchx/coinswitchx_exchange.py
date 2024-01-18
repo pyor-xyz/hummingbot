@@ -1,6 +1,8 @@
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
+import bidict
+
 from hummingbot.connector.constants import s_decimal_NaN
 from hummingbot.connector.exchange.coinswitchx import (
     coinswitchx_constants as CONSTANTS,
@@ -24,6 +26,8 @@ if TYPE_CHECKING:
 
 class CoinswitchxExchange(ExchangePyBase):
 
+    web_utils = web_utils
+
     def __init__(self,
                  client_config_map: "ClientConfigAdapter",
                  coinswitchx_api_key: str,
@@ -36,7 +40,7 @@ class CoinswitchxExchange(ExchangePyBase):
         self.secret_key = coinswitchx_api_secret
         self._domain = domain
         self._trading_required = trading_required
-        self._trading_pairs = trading_pairs
+        self._trading_pairs = ["BTC-INR"]  # TODO
         super().__init__(client_config_map)
 
     @property
@@ -98,7 +102,16 @@ class CoinswitchxExchange(ExchangePyBase):
         pass
 
     async def _format_trading_rules(self, exchange_info_dict: Dict[str, Any]) -> List[TradingRule]:
-        pass
+        retval = []
+        #  TODO
+        retval.append(TradingRule("BTC-INR",
+                                  min_order_size=0.1,
+                                  min_price_increment=Decimal(0.1),
+                                  min_base_amount_increment=Decimal(0.1),
+                                  min_notional_size=Decimal(0.1)))
+        # except Exception:
+        #         self.logger().exception(f"Error parsing the trading pair rule {rule}. Skipping.")
+        return retval
 
     def _get_fee(self,
                  base_currency: str,
@@ -111,7 +124,11 @@ class CoinswitchxExchange(ExchangePyBase):
         pass
 
     def _initialize_trading_pair_symbols_from_exchange_info(self, exchange_info: Dict[str, Any]):
-        pass
+        mapping = bidict()
+        # for symbol_data in filter(binance_utils.is_exchange_information_valid, exchange_info["symbols"]):
+        #     mapping[symbol_data["symbol"]] = combine_to_hb_trading_pair(base=symbol_data["baseAsset"],
+        mapping["BTC-INR"] = "BTC-INR"
+        self._set_trading_pair_symbol_map(mapping)
 
     def _is_order_not_found_during_status_update_error(self, status_update_exception: Exception) -> bool:
         pass

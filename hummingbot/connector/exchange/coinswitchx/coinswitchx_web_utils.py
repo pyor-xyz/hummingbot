@@ -35,10 +35,22 @@ def get_hb_id_headers() -> Dict[str, Any]:
     }
 
 
-def rest_url(path_url: str) -> str:
+def public_rest_url(path_url: str,
+                    domain: str = CONSTANTS.DEFAULT_DOMAIN,) -> str:
     """
     Creates a full URL for provided public REST endpoint
     :param path_url: a public REST endpoint
+    :return: the full URL to the endpoint
+    """
+    return f"https://{CONSTANTS.REST_URL}/api/{path_url}"
+
+
+def private_rest_url(path_url: str,
+                     domain: str = CONSTANTS.DEFAULT_DOMAIN,) -> str:
+    """
+    Creates a full URL for provided private REST endpoint
+    :param path_url: a private REST endpoint
+    :param domain: The default value is "com.br". Not in use at this time.
     :return: the full URL to the endpoint
     """
     return f"https://{CONSTANTS.REST_URL}/api/{path_url}"
