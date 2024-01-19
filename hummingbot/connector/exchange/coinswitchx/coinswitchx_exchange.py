@@ -219,21 +219,30 @@ class CoinswitchxExchange(ExchangePyBase):
         local_asset_names = set(self._account_balances.keys())
         remote_asset_names = set()
 
-        balances = await self._api_get(
+        data = await self._api_get(
             path_url = CONSTANTS.GET_BALANCE_PATH_URL,
             is_auth_required = True
         )
 
+        balances = data.get("data")
         available = balances.get("Available")
+        if "Available" in balances and available is None:
+            available = {}
         locked = balances.get("Locked")
-        assets = available.keys()
+        if "Locked" in balances and locked is None:
+            locked = {}
+        assets = set(available.keys()) | set(locked.keys())
 
         for asset in assets:
             asset_name = asset.upper()
-            free_balance = coinswitchx_utils.decimal_val_or_none(available.get(asset_name))
-            total_balance = free_balance + coinswitchx_utils.decimal_val_or_none(locked.get(asset_name))
+            free_balance_raw = available.get(asset, '0')
+            free_balance = coinswitchx_utils.decimal_val_or_none(string_value = free_balance_raw)
+            locked_balance_raw = locked.get(asset, '0')
+            locked_balance = coinswitchx_utils.decimal_val_or_none(string_value = locked_balance_raw)
+            total_balance = free_balance + locked_balance
             self._account_available_balances[asset_name] = free_balance
             self._account_balances[asset_name] = total_balance
+            remote_asset_names.add(asset_name)
 
         asset_names_to_remove = local_asset_names.difference(remote_asset_names)
         for asset_name in asset_names_to_remove:

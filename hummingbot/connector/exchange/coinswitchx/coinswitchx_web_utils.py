@@ -48,9 +48,8 @@ def websocket_url() -> str:
 
 
 def build_api_factory(
-    throttler: Optional[AsyncThrottler] = None,
-    auth: Optional[AuthBase] = None,
-) -> WebAssistantsFactory:
+        throttler: Optional[AsyncThrottler] = None,
+        auth: Optional[AuthBase] = None) -> WebAssistantsFactory:
     throttler = throttler or create_throttler()
     api_factory = WebAssistantsFactory(throttler=throttler, auth=auth)
     return api_factory
@@ -61,7 +60,6 @@ def create_throttler() -> AsyncThrottler:
 
 
 async def get_current_server_time(
-    throttler: Optional[AsyncThrottler] = None,
-    domain: str = CONSTANTS.DEFAULT_DOMAIN,
-) -> int:
+        throttler: Optional[AsyncThrottler] = None,
+        domain: str = CONSTANTS.DEFAULT_DOMAIN) -> int:
     return int(time.time() * 1e3)

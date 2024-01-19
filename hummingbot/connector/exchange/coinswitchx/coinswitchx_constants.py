@@ -12,7 +12,7 @@ REST_URL = "sandbox-csx.coinswitch.co"  # TODO
 WSS_URL = "sandbox-websocket.coinswitch.co"
 
 PING_PATH_URL = "v1/public/health/"
-GET_BALANCE_PATH_URL = "v2/me/balance"
+GET_BALANCE_PATH_URL = "v2/me/balance/"
 EXCHANGE_INFO_PATH_URL = "v1/public/instrument/"
 
 # Rate Limit Type

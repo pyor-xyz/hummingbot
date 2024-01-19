@@ -67,7 +67,6 @@ class CoinswitchxAuth(AuthBase):
             "CSX-ACCESS-KEY": self.api_key,
             "CSX-SIGNATURE": signature,
             "CSX-ACCESS-TIMESTAMP": str(timestamp),
-            # TODO X-Forwarded-For
         }
 
         headers = {}
@@ -75,6 +74,10 @@ class CoinswitchxAuth(AuthBase):
             headers.update(request.headers)
         headers.update(coinswitchx_header)
         request.headers = headers
+        if request.data is None:
+            request.data = {}
+        if request.params is None:
+            request.params = {}
 
         return request
 
