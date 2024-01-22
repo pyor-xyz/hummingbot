@@ -10,6 +10,12 @@ from hummingbot.connector.exchange.coinswitchx import (
     coinswitchx_utils,
     coinswitchx_web_utils as web_utils,
 )
+from hummingbot.connector.exchange.coinswitchx.coinswitchx_api_order_book_data_cource import (
+    CoinswitchxAPIOrderBookDataSource,
+)
+from hummingbot.connector.exchange.coinswitchx.coinswitchx_api_user_stream_data_source import (
+    CoinswitchxAPIUserStreamDataSource,
+)
 from hummingbot.connector.exchange.coinswitchx.coinswitchx_auth import CoinswitchxAuth
 from hummingbot.connector.exchange_py_base import ExchangePyBase
 from hummingbot.connector.trading_rule import TradingRule
@@ -20,14 +26,8 @@ from hummingbot.core.data_type.in_flight_order import InFlightOrder, OrderUpdate
 from hummingbot.core.data_type.order_book_tracker_data_source import OrderBookTrackerDataSource
 from hummingbot.core.data_type.trade_fee import TradeFeeBase
 from hummingbot.core.data_type.user_stream_tracker_data_source import UserStreamTrackerDataSource
+from hummingbot.core.utils.estimate_fee import build_trade_fee
 from hummingbot.core.web_assistant.web_assistants_factory import WebAssistantsFactory
-from hummingbot.hummingbot.connector.exchange.coinswitchx.coinswitchx_api_order_book_data_cource import (
-    CoinswitchxAPIOrderBookDataSource,
-)
-from hummingbot.hummingbot.connector.exchange.coinswitchx.coinswitchx_api_user_stream_data_source import (
-    CoinswitchxAPIUserStreamDataSource,
-)
-from hummingbot.hummingbot.core.utils.estimate_fee import build_trade_fee
 
 if TYPE_CHECKING:
     from hummingbot.client.config.config_helpers import ClientConfigAdapter
@@ -98,7 +98,7 @@ class CoinswitchxExchange(ExchangePyBase):
 
     @property
     def is_cancel_request_in_exchange_synchronous(self) -> bool:
-        pass  # TODO
+        return True  # TODO
 
     @property
     def is_trading_required(self) -> bool:
@@ -286,8 +286,6 @@ class CoinswitchxExchange(ExchangePyBase):
     def _create_web_assistants_factory(self) -> WebAssistantsFactory:
         return web_utils.build_api_factory(
             throttler=self._throttler,
-            time_synchronizer=self._time_synchronizer,
-            domain=self._domain,
             auth=self._auth
         )
 

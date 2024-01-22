@@ -11,8 +11,8 @@ from hummingbot.core.data_type.order_book_message import OrderBookMessage
 from hummingbot.core.data_type.order_book_tracker_data_source import OrderBookTrackerDataSource
 from hummingbot.core.web_assistant.connections.data_types import RESTMethod, WSJSONRequest
 from hummingbot.core.web_assistant.web_assistants_factory import WebAssistantsFactory
-from hummingbot.hummingbot.core.web_assistant.ws_assistant import WSAssistant
-from hummingbot.hummingbot.logger.logger import HummingbotLogger
+from hummingbot.core.web_assistant.ws_assistant import WSAssistant
+from hummingbot.logger.logger import HummingbotLogger
 
 if TYPE_CHECKING:
     from hummingbot.connector.exchange.coinswitchx.coinswitchx_exchange import CoinswitchxExchange
