@@ -17,6 +17,9 @@ from hummingbot.connector.exchange.coinswitchx.coinswitchx_api_user_stream_data_
     CoinswitchxAPIUserStreamDataSource,
 )
 from hummingbot.connector.exchange.coinswitchx.coinswitchx_auth import CoinswitchxAuth
+from hummingbot.connector.exchange.coinswitchx.socket_assistant.socketio_assistants_factory import (
+    SocketIoAssistantsFactory,
+)
 from hummingbot.connector.exchange_py_base import ExchangePyBase
 from hummingbot.connector.trading_rule import TradingRule
 from hummingbot.connector.utils import combine_to_hb_trading_pair
@@ -50,6 +53,7 @@ class CoinswitchxExchange(ExchangePyBase):
         self._domain = domain
         self._trading_required = trading_required
         self._trading_pairs = trading_pairs
+        self._socketio_assistant_factory: SocketIoAssistantsFactory = self._create_socketio_assistants_factory()
         super().__init__(client_config_map)
 
     @property
@@ -289,19 +293,25 @@ class CoinswitchxExchange(ExchangePyBase):
             auth=self._auth
         )
 
+    def _create_socketio_assistants_factory(self) -> SocketIoAssistantsFactory:
+        return web_utils.build_socketio_api_factory(
+            throttler=self._throttler,
+            auth=self._auth
+        )
+
     def _create_order_book_data_source(self) -> OrderBookTrackerDataSource:
         return CoinswitchxAPIOrderBookDataSource(
             trading_pairs=self._trading_pairs,
             connector=self,
             domain=self.domain,
-            api_factory=self._web_assistants_factory)
+            api_factory=self._socketio_assistant_factory)
 
     def _create_user_stream_data_source(self) -> UserStreamTrackerDataSource:
         return CoinswitchxAPIUserStreamDataSource(
             auth=self._auth,
             trading_pairs=self._trading_pairs,
             connector=self,
-            api_factory=self._web_assistants_factory,
+            api_factory=self._socketio_assistant_factory,
             domain=self.domain,
         )
 
