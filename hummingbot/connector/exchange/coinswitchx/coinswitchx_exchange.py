@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
@@ -20,6 +21,13 @@ from hummingbot.core.data_type.order_book_tracker_data_source import OrderBookTr
 from hummingbot.core.data_type.trade_fee import TradeFeeBase
 from hummingbot.core.data_type.user_stream_tracker_data_source import UserStreamTrackerDataSource
 from hummingbot.core.web_assistant.web_assistants_factory import WebAssistantsFactory
+from hummingbot.hummingbot.connector.exchange.coinswitchx.coinswitchx_api_order_book_data_cource import (
+    CoinswitchxAPIOrderBookDataSource,
+)
+from hummingbot.hummingbot.connector.exchange.coinswitchx.coinswitchx_api_user_stream_data_source import (
+    CoinswitchxAPIUserStreamDataSource,
+)
+from hummingbot.hummingbot.core.utils.estimate_fee import build_trade_fee
 
 if TYPE_CHECKING:
     from hummingbot.client.config.config_helpers import ClientConfigAdapter
@@ -90,16 +98,22 @@ class CoinswitchxExchange(ExchangePyBase):
 
     @property
     def is_cancel_request_in_exchange_synchronous(self) -> bool:
-        pass
+        pass  # TODO
 
     @property
     def is_trading_required(self) -> bool:
-        pass
+        return self._trading_required
+
+    def supported_order_types(self):
+        return [OrderType.MARKET, OrderType.LIMIT]
+
+    def coinswitchx_order_type(order_type: OrderType) -> str:
+        if order_type == OrderType.LIMIT or order_type == OrderType.MARKET:
+            return order_type.name.lower()
+        else:
+            raise Exception("Order type not supported by Coinswitchx.")
 
     async def _all_trade_updates_for_order(self, order: InFlightOrder) -> List[TradeUpdate]:
-        pass
-
-    def _create_order_book_data_source(self) -> OrderBookTrackerDataSource:
         pass
 
     async def _format_trading_rules(self, exchange_info_dict: Dict[str, Any]) -> List[TradingRule]:
@@ -159,7 +173,19 @@ class CoinswitchxExchange(ExchangePyBase):
                  amount: Decimal,
                  price: Decimal = s_decimal_NaN,
                  is_maker: Optional[bool] = None) -> TradeFeeBase:
-        pass
+
+        is_maker = is_maker or (order_type is OrderType.LIMIT_MAKER)
+        trade_base_fee = build_trade_fee(
+            exchange=self.name,
+            is_maker=is_maker,
+            order_side=order_side,
+            order_type=order_type,
+            amount=amount,
+            price=price,
+            base_currency=base_currency,
+            quote_currency=quote_currency
+        )
+        return trade_base_fee
 
     def _initialize_trading_pair_symbols_from_exchange_info(self, exchange_info: Dict[str, Any]):
         mapping = bidict()
@@ -170,10 +196,10 @@ class CoinswitchxExchange(ExchangePyBase):
         self._set_trading_pair_symbol_map(mapping)
 
     def _is_order_not_found_during_status_update_error(self, status_update_exception: Exception) -> bool:
-        pass
+        return False
 
     def _is_order_not_found_during_cancelation_error(self, cancelation_exception: Exception) -> bool:
-        pass
+        return False
 
     def _is_request_exception_related_to_time_synchronizer(self, request_exception: Exception) -> bool:
         error_description = str(request_exception)
@@ -182,7 +208,20 @@ class CoinswitchxExchange(ExchangePyBase):
         return is_time_synchronizer_related
 
     async def _place_cancel(self, order_id: str, tracked_order: InFlightOrder):
-        pass
+        try:
+            cancel_result = await self._api_delete(
+                path_url=CONSTANTS.CANCEL_ORDER_PATH_URL.format(order_id),
+                is_auth_required=True)
+        except OSError as e:
+            if "HTTP status is 404" in str(e):
+                return True
+            raise e
+
+        if len(cancel_result.get("data")) > 0:
+            if cancel_result.get("data").get('cancelled') == "true":
+                return True
+
+        return False
 
     async def _place_order(self,
                            order_id: str,
@@ -192,10 +231,51 @@ class CoinswitchxExchange(ExchangePyBase):
                            order_type: OrderType,
                            price: Decimal,
                            ) -> Tuple[str, float]:
-        pass
+        order_result = None
+        amount_str = str(amount)
+        price_str = str(price)
+        type_str = CoinswitchxExchange.coinswitchx_order_type(order_type)
+        side_str = CONSTANTS.SIDE_BUY if trade_type is TradeType.BUY else CONSTANTS.SIDE_SELL
+        symbol = await self.exchange_symbol_associated_to_pair(trading_pair=trading_pair)
+        req_body = {
+            "instrument": symbol,
+            "side": side_str,
+            "quantity": amount_str,
+            "type": type_str,
+            "clientOrderId": order_id,
+            "username": "",  # TODO
+        }
+        if order_type == OrderType.LIMIT:
+            req_body["limitPrice"] = price_str
+
+        self.logger().info(f'New order sent with these fields: {req_body}')
+
+        order_result = await self._api_post(
+            path_url=CONSTANTS.ORDER_PATH_URL,
+            data=req_body,
+            is_auth_required=True
+        )
+        exchange_order_id = str(order_result['data']["orderId"])
+        transact_time = int(datetime.now(timezone.utc).timestamp() * 1e3)
+        return exchange_order_id, transact_time
 
     async def _request_order_status(self, tracked_order: InFlightOrder) -> OrderUpdate:
-        pass
+        updated_order_data = await self._api_get(
+            path_url=CONSTANTS.GET_ORDER_BY_ID.format(tracked_order.exchange_order_id),
+            is_auth_required=True,
+        )
+
+        new_state = CONSTANTS.ORDER_STATE[updated_order_data['data']["status"]]
+
+        order_update = OrderUpdate(
+            trading_pair=tracked_order.trading_pair,
+            update_timestamp=(datetime.now(timezone.utc).timestamp() * 1e3),
+            new_state=new_state,
+            client_order_id=tracked_order.client_order_id,
+            exchange_order_id=str(updated_order_data.get("id")),
+        )
+
+        return order_update
 
     async def _update_trading_fees(self):
         """
@@ -204,13 +284,28 @@ class CoinswitchxExchange(ExchangePyBase):
         pass
 
     def _create_web_assistants_factory(self) -> WebAssistantsFactory:
-        return web_utils.build_api_factory(throttler=self._throttler, auth=self._auth)
+        return web_utils.build_api_factory(
+            throttler=self._throttler,
+            time_synchronizer=self._time_synchronizer,
+            domain=self._domain,
+            auth=self._auth
+        )
+
+    def _create_order_book_data_source(self) -> OrderBookTrackerDataSource:
+        return CoinswitchxAPIOrderBookDataSource(
+            trading_pairs=self._trading_pairs,
+            connector=self,
+            domain=self.domain,
+            api_factory=self._web_assistants_factory)
 
     def _create_user_stream_data_source(self) -> UserStreamTrackerDataSource:
-        pass
-
-    def supported_order_types(self) -> List[OrderType]:
-        pass
+        return CoinswitchxAPIUserStreamDataSource(
+            auth=self._auth,
+            trading_pairs=self._trading_pairs,
+            connector=self,
+            api_factory=self._web_assistants_factory,
+            domain=self.domain,
+        )
 
     async def _user_stream_event_listener(self):
         pass

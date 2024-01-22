@@ -1,4 +1,5 @@
 from hummingbot.core.api_throttler.data_types import LinkedLimitWeightPair, RateLimit
+from hummingbot.core.data_type.in_flight_order import OrderState
 
 DEFAULT_DOMAIN = "co"
 
@@ -14,6 +15,10 @@ WSS_URL = "sandbox-websocket.coinswitch.co"
 PING_PATH_URL = "v1/public/health/"
 GET_BALANCE_PATH_URL = "v2/me/balance/"
 EXCHANGE_INFO_PATH_URL = "v1/public/instrument/"
+ORDER_PATH_URL = "v1/orders/"
+CANCEL_ORDER_PATH_URL = "v1/orders/{}"
+GET_ORDER_BY_ID = "v1/orders/{}"
+SNAPSHOT_PATH_URL = "v2/public/depth/"
 
 # Rate Limit Type
 REQUEST_WEIGHT = "REQUEST_WEIGHT"
@@ -27,16 +32,19 @@ ONE_DAY = 86400
 
 MAX_REQUEST = 100
 
-# TICKER_PRICE_CHANGE_PATH_URL = "SubscribeLevel1"
-# SNAPSHOT_PATH_URL = "markets/{}/orderbook"
-# SERVER_TIME_PATH_URL = ""
+SIDE_BUY = 'BUY'
+SIDE_SELL = 'SELL'
 
-# ACCOUNTS_PATH_URL = "accounts"
-# MY_TRADES_PATH_URL = "trades"
-# ORDER_PATH_URL = "orders"
-# CANCEL_ORDER_PATH_URL = "orders/cancel"
-# GET_ORDER_BY_CLIENT_ID = "orders/by-client-order-id/{}"
-# GET_ORDER_BY_ID = "orders/by-order-id/{}"
+ORDER_STATE = {
+    "PENDING": OrderState.PENDING_CREATE,
+    "NEW": OrderState.OPEN,
+    "FILLED": OrderState.FILLED,
+    "PARTIALLY_FILLED": OrderState.PARTIALLY_FILLED,
+    "PENDING_CANCEL": OrderState.OPEN,
+    "CANCELED": OrderState.CANCELED,
+    "REJECTED": OrderState.FAILED,
+    "EXPIRED": OrderState.FAILED,
+}
 
 # TODO fix rate limits
 RATE_LIMITS = [
@@ -65,3 +73,9 @@ RATE_LIMITS = [
     #                          LinkedLimitWeightPair(ORDERS, 1),
     #                          LinkedLimitWeightPair(ORDERS_24HR, 1)]),
 ]
+
+# Websocket event types
+DIFF_EVENT_TYPE = "depth"
+TRADE_EVENT_TYPE = "trade"
+
+WS_HEARTBEAT_TIME_INTERVAL = 30
