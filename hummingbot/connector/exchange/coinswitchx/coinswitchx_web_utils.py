@@ -2,6 +2,9 @@ import time
 from typing import Any, Dict, Optional
 
 import hummingbot.connector.exchange.coinswitchx.coinswitchx_constants as CONSTANTS
+from hummingbot.connector.exchange.coinswitchx.socket_assistant.socketio_assistants_factory import (
+    SocketIoAssistantsFactory,
+)
 from hummingbot.core.api_throttler.async_throttler import AsyncThrottler
 from hummingbot.core.web_assistant.auth import AuthBase
 from hummingbot.core.web_assistant.web_assistants_factory import WebAssistantsFactory
@@ -52,6 +55,14 @@ def build_api_factory(
         auth: Optional[AuthBase] = None) -> WebAssistantsFactory:
     throttler = throttler or create_throttler()
     api_factory = WebAssistantsFactory(throttler=throttler, auth=auth)
+    return api_factory
+
+
+def build_socketio_api_factory(
+        throttler: Optional[AsyncThrottler] = None,
+        auth: Optional[AuthBase] = None) -> SocketIoAssistantsFactory:
+    throttler = throttler or create_throttler()
+    api_factory = SocketIoAssistantsFactory(throttler=throttler, auth=auth)
     return api_factory
 
 
